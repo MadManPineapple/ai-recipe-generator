@@ -8,9 +8,29 @@ import { generateClient } from "aws-amplify/data";
 import outputs from "../amplify_outputs.json";
 import "@aws-amplify/ui-react/styles.css";
 Amplify.configure(outputs);
-const amplifyClient = generateClient<Schema>({
- authMode: "userPool",
-});
+const amplifyClient = generateClient<Schema>();
+
+type AmplifyAuthMode =
+ | "apiKey"
+ | "iam"
+ | "identityPool"
+ | "oidc"
+ | "userPool"
+ | "lambda"
+ | "none";
+
+type AskBedrockResponse = {
+ body?: string | null;
+ error?: string | null;
+};
+
+type AskBedrockQuery = (
+ args: { ingredients: string[] },
+ options?: { authMode?: AmplifyAuthMode }
+) => Promise<{ data: AskBedrockResponse | null; errors?: unknown[] }>;
+
+const askBedrock = (amplifyClient.queries as Record<string, AskBedrockQuery>)
+ .askBedrock;
 function App() {
  const [result, setResult] = useState<string>("");
  const [loading, setLoading] = useState(false);
@@ -19,10 +39,14 @@ function App() {
  setLoading(true);
  try {
  const formData = new FormData(event.currentTarget);
- const { data, errors } = await
-amplifyClient.queries.askBedrock({
- ingredients: [formData.get("ingredients")?.toString() || ""],
- });
+ const { data, errors } = await askBedrock(
+  {
+   ingredients: [formData.get("ingredients")?.toString() || ""],
+  },
+  {
+   authMode: "userPool",
+  }
+ );
  if (!errors) {
  setResult(data?.body || "No data returned");
  } else {
